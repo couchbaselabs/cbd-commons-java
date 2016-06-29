@@ -48,6 +48,11 @@ public class CouchbaseArrayList extends AbstractList<Object> {
     }
 
     @Override
+    public boolean isEmpty() {
+        return bucket.lookupIn(id).exists("[0]").execute().status("[0]") == ResponseStatus.SUBDOC_PATH_NOT_FOUND;
+    }
+
+    @Override
     public Object set(int index, Object element) {
         if (!JsonValue.checkType(element)) {
             throw new IllegalArgumentException("Unsupported value type.");
