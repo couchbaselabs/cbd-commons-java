@@ -93,6 +93,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
     @Override
     public E get(int index) {
+        //fail fast on negative values, as they are interpreted as "starting from the back of the array" otherwise
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("Index: " + index);
+        }
         String idx = "[" + index + "]";
 
         DocumentFragment<Lookup> result = bucket.lookupIn(id).get(idx).execute();
@@ -118,6 +122,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
     @Override
     public E set(int index, E element) {
+        //fail fast on negative values, as they are interpreted as "starting from the back of the array" otherwise
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("Index: " + index);
+        }
         if (!JsonValue.checkType(element)) {
             throw new IllegalArgumentException("Unsupported value type.");
         }
@@ -142,6 +150,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
     @Override
     public void add(int index, E element) {
+        //fail fast on negative values, as they are interpreted as "starting from the back of the array" otherwise
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("Index: " + index);
+        }
         if (!JsonValue.checkType(element)) {
             throw new IllegalArgumentException("Unsupported value type.");
         }
@@ -150,6 +162,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
     @Override
     public E remove(int index) {
+        //fail fast on negative values, as they are interpreted as "starting from the back of the array" otherwise
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("Index: " + index);
+        }
         String idx = "[" + index + "]";
         while(true) {
             try {
