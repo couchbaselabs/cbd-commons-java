@@ -1,5 +1,12 @@
 package com.couchbase.client.commons;
 
+import java.util.AbstractList;
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+
 import com.couchbase.client.core.message.ResponseStatus;
 import com.couchbase.client.core.message.kv.subdoc.multi.Lookup;
 import com.couchbase.client.core.message.kv.subdoc.multi.Mutation;
@@ -11,8 +18,6 @@ import com.couchbase.client.java.error.CASMismatchException;
 import com.couchbase.client.java.error.DocumentAlreadyExistsException;
 import com.couchbase.client.java.error.subdoc.MultiMutationException;
 import com.couchbase.client.java.subdoc.DocumentFragment;
-
-import java.util.*;
 
 
 public class CouchbaseArrayList<E> extends AbstractList<E> {
@@ -73,7 +78,17 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
         this.bucket = bucket;
         this.id = id;
 
-        bucket.upsert(JsonArrayDocument.create(id, JsonArray.from(content)));
+        JsonArray array;
+        if (content instanceof List) {
+            array = JsonArray.from((List) content);
+        } else {
+            array = JsonArray.create();
+            for (E e : content) {
+                array.add(e);
+            }
+        }
+
+        bucket.upsert(JsonArrayDocument.create(id, array));
     }
 
     @Override

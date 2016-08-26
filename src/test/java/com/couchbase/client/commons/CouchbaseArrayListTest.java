@@ -10,6 +10,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
@@ -67,7 +68,7 @@ public class CouchbaseArrayListTest {
 
     @Test
     public void shouldAdd() throws Exception {
-        List<Object> list = new CouchbaseArrayList(uuid, bucket);
+        List<Object> list = new CouchbaseArrayList(uuid, bucket, Collections.<Object>emptyList());
         assertFalse(list.contains("foobar"));
         list.add("foobar");
         assertTrue(list.contains("foobar"));
@@ -77,9 +78,7 @@ public class CouchbaseArrayListTest {
 
     @Test
     public void shouldRemoveByValue() throws Exception {
-        List<Object> list = new CouchbaseArrayList(uuid, bucket);
-        list.add("foo");
-        list.add("bar");
+        List<Object> list = new CouchbaseArrayList(uuid, bucket, "foo", "bar");
         assertTrue(list.contains("foo"));
         assertTrue(list.contains("bar"));
         assertEquals(2, list.size());
@@ -103,11 +102,7 @@ public class CouchbaseArrayListTest {
 
     @Test
     public void shouldRemoveByIndex() {
-        List<Object> list = new CouchbaseArrayList(uuid, bucket);
-        list.add("foo");
-        list.add("bar");
-        list.add("baz");
-        list.add(true);
+        List<Object> list = new CouchbaseArrayList(uuid, bucket, "foo", "bar", "baz", true);
 
         assertEquals(4, list.size());
         list.remove(1);
@@ -117,18 +112,14 @@ public class CouchbaseArrayListTest {
 
     @Test(expected = IndexOutOfBoundsException.class)
     public void shouldThrowOnOutOfBoundsRemove() {
-        List<Object> list = new CouchbaseArrayList(uuid, bucket);
-        list.add("foo");
-        list.add("bar");
+        List<Object> list = new CouchbaseArrayList(uuid, bucket, "foo", "bar");
 
         list.remove(14334324);
     }
 
     @Test
     public void shouldReturnIterator() {
-        List<Object> list = new CouchbaseArrayList(uuid, bucket);
-        list.add("foo");
-        list.add("bar");
+        List<Object> list = new CouchbaseArrayList(uuid, bucket, "foo", "bar");
 
         Iterator<Object> iter = list.iterator();
         int i = 0;
@@ -150,9 +141,7 @@ public class CouchbaseArrayListTest {
 
     @Test
     public void shouldClear() {
-        List<Object> list = new CouchbaseArrayList(uuid, bucket);
-        list.add("foo");
-        list.add("bar");
+        List<Object> list = new CouchbaseArrayList(uuid, bucket, "foo", "bar");
         assertEquals(2, list.size());
 
         list.clear();
@@ -164,9 +153,7 @@ public class CouchbaseArrayListTest {
     //since clear is optimized, also test the iterator removal of the whole list
     @Test
     public void shouldClearViaIterator() {
-        List<Object> list = new CouchbaseArrayList(uuid, bucket);
-        list.add("foo");
-        list.add("bar");
+        List<Object> list = new CouchbaseArrayList(uuid, bucket, "foo", "bar");
         assertEquals(2, list.size());
 
         Iterator<Object> iterator = list.iterator();
@@ -182,12 +169,7 @@ public class CouchbaseArrayListTest {
 
     @Test
     public void shouldIteratorRemoveInReverseOrder() {
-        List<String> list = new CouchbaseArrayList<String>(uuid, bucket);
-        list.add("keep");
-        list.add("foo");
-        list.add("bar");
-        list.add("baz");
-        list.add("foobar");
+        List<String> list = new CouchbaseArrayList<String>(uuid, bucket, "keep", "foo", "bar", "baz", "foobar");
         assertEquals(5, list.size());
 
         ListIterator<String> iterator = list.listIterator();
