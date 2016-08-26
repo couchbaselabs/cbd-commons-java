@@ -229,21 +229,17 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         private long cas;
         private final ListIterator<E> delegate;
-        //flag set whenever next()/previous() is called, unset on remove()
-        boolean canMutate;
-        //the index to mutate, updated after a next()/previous()
-        int lastVisited;
-        //a flag indicating that remove() was called and lastVisited was already decremented
-        //used by previous() to avoid decrementing the lastVisited index twice
-        boolean hasRemoved;
+
+        private int cursor;
+        private int lastVisited;
 
         public CouchbaseListIterator(int index) {
             JsonArrayDocument current = bucket.get(id, JsonArrayDocument.class);
+            List<E> list = ((List<E>) current.content().toList());
             this.cas = current.cas();
-            this.delegate = ((List<E>) current.content().toList()).listIterator(index);
+            this.delegate = list.listIterator(index);
             this.lastVisited = -1;
-            this.canMutate = false;
-            this.hasRemoved = false;
+            this.cursor = index;
         }
 
         @Override
@@ -253,10 +249,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         @Override
         public E next() {
-            lastVisited++;
-            hasRemoved = false;
-            canMutate = delegate.hasNext();
-            return delegate.next();
+            E next = delegate.next();
+            lastVisited = cursor;
+            cursor++;
+            return next;
         }
 
         @Override
@@ -266,11 +262,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         @Override
         public E previous() {
-            if (!hasRemoved)
-                lastVisited--;
-            hasRemoved = false;
-            canMutate = delegate.hasPrevious();
-            return delegate.previous();
+            E previous = delegate.previous();
+            cursor--;
+            lastVisited = cursor;
+            return previous;
         }
 
         @Override
@@ -285,7 +280,7 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         @Override
         public void remove() {
-            if (!canMutate) {
+            if (lastVisited < 0) {
                 throw new IllegalStateException();
             }
             int index = lastVisited;
@@ -296,9 +291,8 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 this.cas = updated.cas();
                 //also correctly reset the state:
                 delegate.remove();
-                this.canMutate = false;
-                this.lastVisited--;
-                this.hasRemoved = true;
+                this.cursor = lastVisited;
+                this.lastVisited = -1;
             } catch (CASMismatchException ex) {
                 throw new ConcurrentModificationException("List was modified since iterator creation", ex);
             } catch (MultiMutationException ex) {
