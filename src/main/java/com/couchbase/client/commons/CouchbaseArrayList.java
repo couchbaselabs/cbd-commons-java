@@ -20,6 +20,14 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
     private final String id;
     private final Bucket bucket;
 
+    /**
+     * Create a new {@link Bucket Couchbase-backed} List, backed by the document identified by <code>id</code>
+     * in <code>bucket</code>. Note that if the document already exists, its content will be used as initial
+     * content for this collection. Otherwise it is created empty.
+     *
+     * @param id the id of the Couchbase document to back the list.
+     * @param bucket the {@link Bucket} through which to interact with the document.
+     */
     public CouchbaseArrayList(String id, Bucket bucket) {
         this.bucket = bucket;
         this.id = id;
@@ -29,6 +37,43 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
         } catch (DocumentAlreadyExistsException ex) {
             // Ignore concurrent creations, keep on moving.
         }
+    }
+
+    /**
+     * Create a new {@link Bucket Couchbase-backed} List, backed by the document identified by <code>id</code>
+     * in <code>bucket</code>. Note that if the document already exists, its content is reset to the values
+     * provided.
+     *
+     * Note that if you don't provide any value as a vararg, the {@link #CouchbaseArrayList(String, Bucket)}
+     * constructor will be invoked instead, which will use pre-existing values as content. To create a new
+     * List and force it to be empty, use {@link #CouchbaseArrayList(String, Bucket, Collection)} with an empty
+     * collection.
+     *
+     * @param id the id of the Couchbase document to back the list.
+     * @param bucket the {@link Bucket} through which to interact with the document.
+     * @param content vararg of the elements to initially store in the List.
+     */
+    public CouchbaseArrayList(String id, Bucket bucket, E... content) {
+        this.bucket = bucket;
+        this.id = id;
+
+        bucket.upsert(JsonArrayDocument.create(id, JsonArray.from(content)));
+    }
+
+    /**
+     * Create a new {@link Bucket Couchbase-backed} List, backed by the document identified by <code>id</code>
+     * in <code>bucket</code>. Note that if the document already exists, its content is reset to the values
+     * provided in the <code>content</code> Collection.
+     *
+     * @param id the id of the Couchbase document to back the list.
+     * @param bucket the {@link Bucket} through which to interact with the document.
+     * @param content collection of the elements to initially store in the List.
+     */
+    public CouchbaseArrayList(String id, Bucket bucket, Collection<? extends E> content) {
+        this.bucket = bucket;
+        this.id = id;
+
+        bucket.upsert(JsonArrayDocument.create(id, JsonArray.from(content)));
     }
 
     @Override
