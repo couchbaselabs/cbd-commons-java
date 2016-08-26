@@ -141,11 +141,14 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
             } catch (CASMismatchException ex) {
                 //will need to retry get-and-set
             } catch (MultiMutationException ex) {
-                if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
+                if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND
+                        || ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_INVALID) {
                     throw new IndexOutOfBoundsException("Index: " + index);
                 }
+                throw ex;
             }
         }
+        throw new ConcurrentModificationException("Couldn't perform set in less than " + MAX_OPTIMISTIC_LOCKING_ATTEMPTS + " iterations");
     }
 
     @Override
@@ -157,7 +160,16 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
         if (!JsonValue.checkType(element)) {
             throw new IllegalArgumentException("Unsupported value type.");
         }
-        bucket.mutateIn(id).arrayInsert("["+index+"]", element).execute();
+
+        try {
+            bucket.mutateIn(id).arrayInsert("["+index+"]", element).execute();
+        } catch (MultiMutationException ex) {
+            if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND ||
+                    ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_INVALID) {
+                throw new IndexOutOfBoundsException("Index: " + index);
+            }
+            throw ex;
+        }
     }
 
     @Override
@@ -180,8 +192,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
                     throw new IndexOutOfBoundsException("Index: " + index);
                 }
+                throw ex;
             }
         }
+        throw new ConcurrentModificationException("Couldn't perform set in less than " + MAX_OPTIMISTIC_LOCKING_ATTEMPTS + " iterations");
     }
 
     @Override
@@ -291,6 +305,7 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
                     throw new ConcurrentModificationException("Element doesn't exist anymore at index: " + index);
                 }
+                throw ex;
             }
         }
 
