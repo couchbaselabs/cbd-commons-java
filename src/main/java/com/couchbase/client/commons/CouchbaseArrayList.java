@@ -305,7 +305,25 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         @Override
         public void set(E e) {
-            throw new UnsupportedOperationException();
+            if (lastVisited < 0) {
+                throw new IllegalStateException();
+            }
+            int index = lastVisited;
+            String idx = "[" + index + "]";
+            try {
+                DocumentFragment<Mutation> updated = bucket.mutateIn(id).replace(idx, e).withCas(this.cas).execute();
+                //update the cas so that several mutations in a row can work
+                this.cas = updated.cas();
+                //also correctly reset the state:
+                delegate.set(e);
+            } catch (CASMismatchException ex) {
+                throw new ConcurrentModificationException("List was modified since iterator creation", ex);
+            } catch (MultiMutationException ex) {
+                if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
+                    throw new ConcurrentModificationException("Element doesn't exist anymore at index: " + index);
+                }
+                throw ex;
+            }
         }
 
         @Override
