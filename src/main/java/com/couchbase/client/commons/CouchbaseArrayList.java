@@ -22,6 +22,7 @@ import com.couchbase.client.java.subdoc.DocumentFragment;
 
 public class CouchbaseArrayList<E> extends AbstractList<E> {
 
+    public static final int MAX_OPTIMISTIC_LOCKING_ATTEMPTS = 100;
     private final String id;
     private final Bucket bucket;
 
@@ -131,7 +132,7 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
         }
         String idx = "["+index+"]";
 
-        while(true) {
+        for(int i = 0; i < MAX_OPTIMISTIC_LOCKING_ATTEMPTS; i++) {
             try {
                 DocumentFragment<Lookup> current = bucket.lookupIn(id).get(idx).execute();
                 long returnCas = current.cas();
@@ -179,7 +180,7 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
             throw new IndexOutOfBoundsException("Index: " + index);
         }
         String idx = "[" + index + "]";
-        while(true) {
+        for(int i = 0; i < MAX_OPTIMISTIC_LOCKING_ATTEMPTS; i++) {
             try {
                 DocumentFragment<Lookup> current = bucket.lookupIn(id).get(idx).execute();
                 long returnCas = current.cas();
