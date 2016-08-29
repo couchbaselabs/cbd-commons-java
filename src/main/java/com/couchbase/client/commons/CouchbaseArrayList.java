@@ -93,6 +93,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
     @Override
     public E get(int index) {
+        //fail fast on negative values, as they are interpreted as "starting from the back of the array" otherwise
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("Index: " + index);
+        }
         String idx = "[" + index + "]";
 
         DocumentFragment<Lookup> result = bucket.lookupIn(id).get(idx).execute();
@@ -118,6 +122,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
     @Override
     public E set(int index, E element) {
+        //fail fast on negative values, as they are interpreted as "starting from the back of the array" otherwise
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("Index: " + index);
+        }
         if (!JsonValue.checkType(element)) {
             throw new IllegalArgumentException("Unsupported value type.");
         }
@@ -133,23 +141,43 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
             } catch (CASMismatchException ex) {
                 //will need to retry get-and-set
             } catch (MultiMutationException ex) {
-                if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
+                if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND
+                        || ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_INVALID) {
                     throw new IndexOutOfBoundsException("Index: " + index);
                 }
+                throw ex;
             }
         }
+        throw new ConcurrentModificationException("Couldn't perform set in less than " + MAX_OPTIMISTIC_LOCKING_ATTEMPTS + " iterations");
     }
 
     @Override
     public void add(int index, E element) {
+        //fail fast on negative values, as they are interpreted as "starting from the back of the array" otherwise
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("Index: " + index);
+        }
         if (!JsonValue.checkType(element)) {
             throw new IllegalArgumentException("Unsupported value type.");
         }
-        bucket.mutateIn(id).arrayInsert("["+index+"]", element).execute();
+
+        try {
+            bucket.mutateIn(id).arrayInsert("["+index+"]", element).execute();
+        } catch (MultiMutationException ex) {
+            if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND ||
+                    ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_INVALID) {
+                throw new IndexOutOfBoundsException("Index: " + index);
+            }
+            throw ex;
+        }
     }
 
     @Override
     public E remove(int index) {
+        //fail fast on negative values, as they are interpreted as "starting from the back of the array" otherwise
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("Index: " + index);
+        }
         String idx = "[" + index + "]";
         while(true) {
             try {
@@ -164,8 +192,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
                     throw new IndexOutOfBoundsException("Index: " + index);
                 }
+                throw ex;
             }
         }
+        throw new ConcurrentModificationException("Couldn't perform set in less than " + MAX_OPTIMISTIC_LOCKING_ATTEMPTS + " iterations");
     }
 
     @Override
@@ -199,21 +229,17 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         private long cas;
         private final ListIterator<E> delegate;
-        //flag set whenever next()/previous() is called, unset on remove()
-        boolean canMutate;
-        //the index to mutate, updated after a next()/previous()
-        int lastVisited;
-        //a flag indicating that remove() was called and lastVisited was already decremented
-        //used by previous() to avoid decrementing the lastVisited index twice
-        boolean hasRemoved;
+
+        private int cursor;
+        private int lastVisited;
 
         public CouchbaseListIterator(int index) {
             JsonArrayDocument current = bucket.get(id, JsonArrayDocument.class);
+            List<E> list = ((List<E>) current.content().toList());
             this.cas = current.cas();
-            this.delegate = ((List<E>) current.content().toList()).listIterator(index);
+            this.delegate = list.listIterator(index);
             this.lastVisited = -1;
-            this.canMutate = false;
-            this.hasRemoved = false;
+            this.cursor = index;
         }
 
         @Override
@@ -223,10 +249,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         @Override
         public E next() {
-            lastVisited++;
-            hasRemoved = false;
-            canMutate = delegate.hasNext();
-            return delegate.next();
+            E next = delegate.next();
+            lastVisited = cursor;
+            cursor++;
+            return next;
         }
 
         @Override
@@ -236,11 +262,10 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         @Override
         public E previous() {
-            if (!hasRemoved)
-                lastVisited--;
-            hasRemoved = false;
-            canMutate = delegate.hasPrevious();
-            return delegate.previous();
+            E previous = delegate.previous();
+            cursor--;
+            lastVisited = cursor;
+            return previous;
         }
 
         @Override
@@ -255,7 +280,7 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         @Override
         public void remove() {
-            if (!canMutate) {
+            if (lastVisited < 0) {
                 throw new IllegalStateException();
             }
             int index = lastVisited;
@@ -266,26 +291,61 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 this.cas = updated.cas();
                 //also correctly reset the state:
                 delegate.remove();
-                this.canMutate = false;
-                this.lastVisited--;
-                this.hasRemoved = true;
+                this.cursor = lastVisited;
+                this.lastVisited = -1;
             } catch (CASMismatchException ex) {
                 throw new ConcurrentModificationException("List was modified since iterator creation", ex);
             } catch (MultiMutationException ex) {
                 if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
                     throw new ConcurrentModificationException("Element doesn't exist anymore at index: " + index);
                 }
+                throw ex;
             }
         }
 
         @Override
         public void set(E e) {
-            throw new UnsupportedOperationException();
+            if (lastVisited < 0) {
+                throw new IllegalStateException();
+            }
+            int index = lastVisited;
+            String idx = "[" + index + "]";
+            try {
+                DocumentFragment<Mutation> updated = bucket.mutateIn(id).replace(idx, e).withCas(this.cas).execute();
+                //update the cas so that several mutations in a row can work
+                this.cas = updated.cas();
+                //also correctly reset the state:
+                delegate.set(e);
+            } catch (CASMismatchException ex) {
+                throw new ConcurrentModificationException("List was modified since iterator creation", ex);
+            } catch (MultiMutationException ex) {
+                if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
+                    throw new ConcurrentModificationException("Element doesn't exist anymore at index: " + index);
+                }
+                throw ex;
+            }
         }
 
         @Override
         public void add(E e) {
-            throw new UnsupportedOperationException();
+            int index = this.cursor;
+            String idx = "[" + index + "]";
+            try {
+                DocumentFragment<Mutation> updated = bucket.mutateIn(id).arrayInsert(idx, e).withCas(this.cas).execute();
+                //update the cas so that several mutations in a row can work
+                this.cas = updated.cas();
+                //also correctly reset the state:
+                delegate.add(e);
+                this.cursor++;
+                this.lastVisited = -1;
+            } catch (CASMismatchException ex) {
+                throw new ConcurrentModificationException("List was modified since iterator creation", ex);
+            } catch (MultiMutationException ex) {
+                if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
+                    throw new ConcurrentModificationException("Element doesn't exist anymore at index: " + index);
+                }
+                throw ex;
+            }
         }
     }
 }
