@@ -1,8 +1,5 @@
 package com.couchbase.client.commons;
 
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,7 +15,6 @@ import com.google.common.collect.testing.features.ListFeature;
 import junit.framework.TestSuite;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -26,8 +22,6 @@ import org.junit.runners.Suite;
 /**
  * Tests the functionality of {@link CouchbaseArrayList} using guava-testlib's testsuite
  * generator for lists.
- *
- * @author Simon Baslé
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ CouchbaseArrayListGuavaTests.GuavaTests.class })

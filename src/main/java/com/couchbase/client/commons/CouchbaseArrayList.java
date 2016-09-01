@@ -13,13 +13,23 @@ import com.couchbase.client.core.message.kv.subdoc.multi.Mutation;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.document.JsonArrayDocument;
 import com.couchbase.client.java.document.json.JsonArray;
+import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.document.json.JsonValue;
 import com.couchbase.client.java.error.CASMismatchException;
 import com.couchbase.client.java.error.DocumentAlreadyExistsException;
 import com.couchbase.client.java.error.subdoc.MultiMutationException;
 import com.couchbase.client.java.subdoc.DocumentFragment;
 
-
+/**
+ * A CouchbaseArrayList is a {@link List} backed by a {@link Bucket Couchbase} document (more
+ * specifically a {@link JsonArrayDocument JSON array}).
+ *
+ * Note that as such, a CouchbaseArrayList is restricted to the types that a {@link JsonArray JSON array}
+ * can contain. JSON objects and sub-arrays can be represented as {@link JsonObject} and {@link JsonArray}
+ * respectively.
+ *
+ * @param <E> the type of values in the list.
+ */
 public class CouchbaseArrayList<E> extends AbstractList<E> {
 
     public static final int MAX_OPTIMISTIC_LOCKING_ATTEMPTS = 100;
