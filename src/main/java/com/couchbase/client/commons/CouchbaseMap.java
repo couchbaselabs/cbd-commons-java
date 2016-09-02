@@ -232,7 +232,7 @@ public class CouchbaseMap<V> extends AbstractMap<String, V> {
             if (delegate.remove(o)) {
                 if (o instanceof Map.Entry) {
                     Entry<String, V> entry = (Entry<String, V>) o;
-                    CouchbaseMap.this.remove(entry.getKey(), entry.getValue());
+                    CouchbaseMap.this.remove(entry.getKey());
                 } else {
                     throw new IllegalStateException("Expected entrySet remove() to remove an entry");
                 }
@@ -307,7 +307,7 @@ public class CouchbaseMap<V> extends AbstractMap<String, V> {
             if (lastNext == null)
                 throw new IllegalStateException("next() hasn't been called before remove()");
             delegateItr.remove();
-            CouchbaseMap.this.remove(lastNext.getKey(), lastNext.getValue());
+            CouchbaseMap.this.remove(lastNext.getKey());
         }
     }
 }

@@ -305,7 +305,8 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 this.cursor = lastVisited;
                 this.lastVisited = -1;
             } catch (CASMismatchException ex) {
-                throw new ConcurrentModificationException("List was modified since iterator creation", ex);
+                //TODO if target switch to Java 7, use ctor with a Cause
+                throw new ConcurrentModificationException("List was modified since iterator creation: " + ex);
             } catch (MultiMutationException ex) {
                 if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
                     throw new ConcurrentModificationException("Element doesn't exist anymore at index: " + index);
@@ -328,7 +329,8 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 //also correctly reset the state:
                 delegate.set(e);
             } catch (CASMismatchException ex) {
-                throw new ConcurrentModificationException("List was modified since iterator creation", ex);
+                //TODO if target switch to Java 7, use ctor with a Cause
+                throw new ConcurrentModificationException("List was modified since iterator creation: " + ex);
             } catch (MultiMutationException ex) {
                 if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
                     throw new ConcurrentModificationException("Element doesn't exist anymore at index: " + index);
@@ -350,7 +352,8 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 this.cursor++;
                 this.lastVisited = -1;
             } catch (CASMismatchException ex) {
-                throw new ConcurrentModificationException("List was modified since iterator creation", ex);
+                //TODO if target switch to Java 7, use ctor with a Cause
+                throw new ConcurrentModificationException("List was modified since iterator creation: " + ex);
             } catch (MultiMutationException ex) {
                 if (ex.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
                     throw new ConcurrentModificationException("Element doesn't exist anymore at index: " + index);
