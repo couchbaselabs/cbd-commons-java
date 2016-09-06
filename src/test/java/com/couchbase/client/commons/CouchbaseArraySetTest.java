@@ -2,6 +2,7 @@ package com.couchbase.client.commons;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.Set;
@@ -10,8 +11,12 @@ import java.util.UUID;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.JsonArrayDocument;
+import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.document.json.JsonArray;
 import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.error.DocumentDoesNotExistException;
+import com.couchbase.client.java.error.TranscodingException;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -79,6 +84,30 @@ public class CouchbaseArraySetTest {
     }
 
     @Test
+    public void shouldRefuseAddingJsonArrayToSet() {
+        CouchbaseArraySet<Object> set = new CouchbaseArraySet<Object>(uuid, bucket, null);
+
+        try {
+            set.add(JsonArray.create());
+        } catch (ClassCastException e) {
+            assertTrue(e.getMessage().contains("CouchbaseArraySet"));
+            //success
+        }
+    }
+
+    @Test
+    public void shouldRefuseCreatingSetWithJsonArray() {
+        Set<Object> initial = Collections.<Object>singleton(JsonArray.create());
+
+        try {
+            CouchbaseArraySet<Object> set = new CouchbaseArraySet<Object>(uuid, bucket, initial);
+        } catch (ClassCastException e) {
+            assertTrue(e.getMessage().contains("CouchbaseArraySet"));
+            //success
+        }
+    }
+
+    @Test
     public void shouldAddCloseValuesDifferentTypes() {
         CouchbaseArraySet<Object> set = new CouchbaseArraySet<Object>(uuid, bucket);
 
@@ -87,5 +116,51 @@ public class CouchbaseArraySetTest {
         set.add(1.0);
 
         assertEquals(3, set.size());
+    }
+
+    @Test
+    public void testConstructorWithPreExistingDocument() {
+        JsonArrayDocument preExisting = JsonArrayDocument.create(uuid, JsonArray.from("test"));
+        bucket.upsert(preExisting);
+
+        Set<String> set = new CouchbaseArraySet(uuid, bucket);
+
+        assertEquals(1, set.size());
+        assertTrue(set.contains("test"));
+    }
+
+    @Test
+    public void testConstructorWithPreExistingDocumentOfWrongTypeFails() {
+        JsonDocument preExisting = JsonDocument.create(uuid, JsonObject.create().put("test", "value"));
+        bucket.upsert(preExisting);
+
+        Set<String> set = new CouchbaseArraySet(uuid, bucket);
+        try {
+            set.size();
+            fail("Expected TranscodingException");
+        } catch (TranscodingException e) {
+            //expected
+        }
+    }
+
+    @Test
+    public void testConstructorWithCollectionDataOverwrites() {
+        JsonDocument preExisting = JsonDocument.create(uuid, JsonObject.create().put("test", "value"));
+        bucket.upsert(preExisting);
+
+        Set<String> set = new CouchbaseArraySet(uuid, bucket, Collections.singleton("foo"));
+
+        assertEquals(1, set.size());
+        assertTrue(set.contains("foo"));
+    }
+
+    @Test
+    public void testConstructorWithEmptyCollectionOverwrites() {
+        JsonDocument preExisting = JsonDocument.create(uuid, JsonObject.create().put("test", "value"));
+        bucket.upsert(preExisting);
+
+        Set<String> set = new CouchbaseArraySet(uuid, bucket, Collections.emptySet());
+
+        assertEquals(0, set.size());
     }
 }

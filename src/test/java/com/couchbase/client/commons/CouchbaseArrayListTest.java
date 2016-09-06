@@ -3,7 +3,12 @@ package com.couchbase.client.commons;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.JsonArrayDocument;
+import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.document.json.JsonArray;
+import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.error.DocumentDoesNotExistException;
+import com.couchbase.client.java.error.TranscodingException;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -202,6 +207,84 @@ public class CouchbaseArrayListTest {
     public void shouldFailOnOutOfBoundsGet() {
         List<Object> list = new CouchbaseArrayList(uuid, bucket);
         list.get(4234324);
+    }
+
+    @Test
+    public void testConstructorWithPreExistingDocument() {
+        JsonArrayDocument preExisting = JsonArrayDocument.create(uuid, JsonArray.from("test"));
+        bucket.upsert(preExisting);
+
+        List<String> list = new CouchbaseArrayList(uuid, bucket);
+
+        assertEquals(1, list.size());
+        assertEquals("test", list.get(0));
+    }
+
+    @Test
+    public void testConstructorWithPreExistingDocumentOfWrongTypeFails() {
+        JsonDocument preExisting = JsonDocument.create(uuid, JsonObject.create().put("test", "value"));
+        bucket.upsert(preExisting);
+
+        List<String> list = new CouchbaseArrayList(uuid, bucket);
+        try {
+            list.size();
+            fail("Expected TranscodingException");
+        } catch (TranscodingException e) {
+            //expected
+        }
+    }
+
+    @Test
+    public void testConstructorWithVarargDataOverwrites() {
+        JsonDocument preExisting = JsonDocument.create(uuid, JsonObject.create().put("test", "value"));
+        bucket.upsert(preExisting);
+
+        List<String> list = new CouchbaseArrayList(uuid, bucket, "foo");
+
+        assertEquals(1, list.size());
+        assertEquals("foo", list.get(0));
+    }
+
+    @Test
+    public void testConstructorWithCollectionDataOverwrites() {
+        JsonDocument preExisting = JsonDocument.create(uuid, JsonObject.create().put("test", "value"));
+        bucket.upsert(preExisting);
+
+        List<String> list = new CouchbaseArrayList(uuid, bucket, Collections.singletonList("foo"));
+
+        assertEquals(1, list.size());
+        assertEquals("foo", list.get(0));
+    }
+
+    @Test
+    public void testConstructorWithEmptyCollectionOverwrites() {
+        JsonDocument preExisting = JsonDocument.create(uuid, JsonObject.create().put("test", "value"));
+        bucket.upsert(preExisting);
+
+        List<String> list = new CouchbaseArrayList(uuid, bucket, Collections.emptyList());
+
+        assertEquals(0, list.size());
+    }
+
+    @Test
+    public void shouldAcceptAllJsonValueCompatibleTypes() {
+        List<Object> list = new CouchbaseArrayList<Object>(uuid, bucket);
+
+        JsonObject sub1 = JsonObject.create().put("foo", "bar").put("value", 4);
+        JsonArray sub2 = JsonArray.from("A", "B", 5);
+
+        list.add("someString");
+        list.add(123);
+        list.add(4.56);
+        list.add(null);
+        list.add(true);
+        list.add(sub1);
+        list.add(sub2);
+
+        assertEquals(7, list.size());
+        assertTrue(list.contains(sub1));
+        assertTrue(list.contains(sub2));
+        assertTrue(list.contains(null));
     }
 
 }

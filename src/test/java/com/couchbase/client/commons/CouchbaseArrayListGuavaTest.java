@@ -13,8 +13,8 @@ import com.google.common.collect.testing.features.CollectionFeature;
 import com.google.common.collect.testing.features.CollectionSize;
 import com.google.common.collect.testing.features.ListFeature;
 import junit.framework.TestSuite;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -27,24 +27,19 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({ CouchbaseArrayListGuavaTest.GuavaTests.class })
 public class CouchbaseArrayListGuavaTest {
 
-    private static Cluster cluster;
-    private static Bucket bucket;
-
-    @BeforeClass
-    public static void initCluster() {
-        cluster = CouchbaseCluster.create();
-        bucket = cluster.openBucket();
-    }
-
-    @AfterClass
-    public static void disconnect() {
-        cluster.disconnect();
-    }
-
     //the holder for the guava-generated test suite
     public static class GuavaTests {
 
+        private static Cluster cluster = CouchbaseCluster.create();
+        private static Bucket bucket = cluster.openBucket();
+        private static int testCount;
+
         private static String uuid;
+
+        @Test
+        @Ignore
+        //fixes "All Unit Tests" runs in IntelliJ complaining about no test method found
+        public void noop() { }
 
         public static TestSuite suite() {
             TestSuite suite = new ListTestSuiteBuilder<String>()
@@ -69,6 +64,10 @@ public class CouchbaseArrayListGuavaTest {
                             } catch (DocumentDoesNotExistException e) {
                                 //ignore
                             }
+                            testCount--;
+                            if (testCount < 1) {
+                                cluster.disconnect();
+                            }
                         }
                     })
                     .named("CouchbaseArrayList")
@@ -83,7 +82,10 @@ public class CouchbaseArrayListGuavaTest {
                             CollectionFeature.ALLOWS_NULL_VALUES,
                             CollectionSize.ANY)
                     .createTestSuite();
+
+            testCount = suite.countTestCases() - suite.testCount();
             return suite;
         }
     }
+
 }
