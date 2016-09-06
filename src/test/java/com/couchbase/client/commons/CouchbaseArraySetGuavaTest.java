@@ -1,18 +1,19 @@
 package com.couchbase.client.commons;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.error.DocumentDoesNotExistException;
-import com.google.common.collect.testing.MapTestSuiteBuilder;
-import com.google.common.collect.testing.TestStringMapGenerator;
+import com.google.common.collect.testing.SampleElements;
+import com.google.common.collect.testing.SetTestSuiteBuilder;
+import com.google.common.collect.testing.TestSetGenerator;
 import com.google.common.collect.testing.features.CollectionFeature;
 import com.google.common.collect.testing.features.CollectionSize;
-import com.google.common.collect.testing.features.MapFeature;
+import com.google.common.collect.testing.features.SetFeature;
 import junit.framework.TestSuite;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -21,12 +22,12 @@ import org.junit.runners.Suite;
 
 
 /**
- * Tests the functionality of {@link CouchbaseMap} using guava-testlib's testsuite
- * generator for maps.
+ * Tests the functionality of {@link CouchbaseArraySet} using guava-testlib's testsuite
+ * generator for sets.
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ CouchbaseMapGuavaTests.GuavaTests.class })
-public class CouchbaseMapGuavaTests {
+@Suite.SuiteClasses({ CouchbaseArraySetGuavaTest.GuavaTests.class })
+public class CouchbaseArraySetGuavaTest {
 
     private static Cluster cluster;
     private static Bucket bucket;
@@ -36,27 +37,42 @@ public class CouchbaseMapGuavaTests {
         cluster = CouchbaseCluster.create();
         bucket = cluster.openBucket();
     }
+
     @AfterClass
     public static void disconnect() {
         cluster.disconnect();
     }
 
     //the holder for the guava-generated test suite
-    public static class GuavaTests {
+    public static class GuavaTests  {
 
         private static String uuid;
 
         public static TestSuite suite() {
-            TestSuite suite = new MapTestSuiteBuilder<String, String>()
-                    .using(new TestStringMapGenerator() {
+            TestSuite suite = new SetTestSuiteBuilder<Object>()
+                    .using(new TestSetGenerator<Object>() {
                         @Override
-                        protected Map<String, String> create(Map.Entry<String, String>[] entries) {
-                            HashMap<String, String> tempMap = new HashMap<String, String>(entries.length);
-                            for (Map.Entry<String, String> entry : entries) {
-                                tempMap.put(entry.getKey(), entry.getValue());
+                        public Set<Object> create(Object... elements) {
+                            CouchbaseArraySet<Object> set = new CouchbaseArraySet<Object>(uuid, bucket, null);
+                            for (Object o : elements) {
+                                set.add(o);
                             }
-                            Map<String, String> map = new CouchbaseMap<String>(uuid, bucket, tempMap);
-                            return map;
+                            return set;
+                        }
+
+                        @Override
+                        public SampleElements<Object> samples() {
+                            return GuavaTestUtils.samplesWithoutJsonValues;
+                        }
+
+                        @Override
+                        public Object[] createArray(int length) {
+                            return new Object[length];
+                        }
+
+                        @Override
+                        public Iterable<Object> order(List<Object> insertionOrder) {
+                            return insertionOrder;
                         }
                     })
                     .withSetUp(new Runnable() {
@@ -75,13 +91,11 @@ public class CouchbaseMapGuavaTests {
                             }
                         }
                     })
-                    .named("CouchbaseMap")
+                    .named("CouchbaseArraySet")
                     .withFeatures(
-                            MapFeature.GENERAL_PURPOSE,
-                            MapFeature.ALLOWS_NULL_VALUES,
-                            MapFeature.RESTRICTS_KEYS,
-                            MapFeature.RESTRICTS_VALUES,
-                            CollectionFeature.SUPPORTS_ITERATOR_REMOVE,
+                            SetFeature.GENERAL_PURPOSE,
+                            CollectionFeature.RESTRICTS_ELEMENTS,
+                            CollectionFeature.ALLOWS_NULL_VALUES,
                             CollectionSize.ANY)
                     .createTestSuite();
             return suite;

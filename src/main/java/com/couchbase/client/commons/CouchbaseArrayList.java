@@ -206,7 +206,7 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
                 throw ex;
             }
         }
-        throw new ConcurrentModificationException("Couldn't perform set in less than " + MAX_OPTIMISTIC_LOCKING_ATTEMPTS + " iterations");
+        throw new ConcurrentModificationException("Couldn't perform remove in less than " + MAX_OPTIMISTIC_LOCKING_ATTEMPTS + " iterations");
     }
 
     @Override

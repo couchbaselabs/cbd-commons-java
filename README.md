@@ -62,3 +62,30 @@ map.containsValue("hello");
 
 map.get("subObject");
 ```
+
+## CouchbaseArraySet
+The set is backed by a JSON document with an array root `[]`. Add and Remove operations both need to
+check for existence of a value in the existing doc, which they perform using a CAS loop in the background.
+
+The use of subdocument operations places a number of restrictions on this set implementation:
+
+ - it restricts values to primitive JSON types (string, boolean, int/long, doubles).
+ - JSON sub-objects and sub-arrays are not supported.
+ - nulls are supported.
+
+```java
+import com.couchbase.client.commons.CouchbaseArraySet;
+
+//if the doc already exists, this constructor will overwrite it
+Set<Object> set = new CouchbaseArraySet("my-set-docid", bucket, null);
+
+set.add("someString");
+set.add(1234.5);
+set.add(null);
+
+set.contains(null); //true
+set.contains("foo"); //false
+
+set.remove("someString"); //true
+set.remove("bar"); //false
+```

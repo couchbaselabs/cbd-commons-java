@@ -24,8 +24,8 @@ import org.junit.runners.Suite;
  * generator for lists.
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ CouchbaseArrayListGuavaTests.GuavaTests.class })
-public class CouchbaseArrayListGuavaTests {
+@Suite.SuiteClasses({ CouchbaseArrayListGuavaTest.GuavaTests.class })
+public class CouchbaseArrayListGuavaTest {
 
     private static Cluster cluster;
     private static Bucket bucket;
