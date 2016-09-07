@@ -1,6 +1,7 @@
 package com.couchbase.client.commons;
 
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -246,7 +247,11 @@ public class CouchbaseArrayList<E> extends AbstractList<E> {
 
         public CouchbaseListIterator(int index) {
             JsonArrayDocument current = bucket.get(id, JsonArrayDocument.class);
-            List<E> list = ((List<E>) current.content().toList());
+            //Care not to use toList, as it will convert internal JsonObject/JsonArray to Map/List
+            List<E> list = new ArrayList<E>(current.content().size());
+            for (E value : (Iterable<E>) current.content()) {
+                list.add(value);
+            }
             this.cas = current.cas();
             this.delegate = list.listIterator(index);
             this.lastVisited = -1;
