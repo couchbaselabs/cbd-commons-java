@@ -5,6 +5,7 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.Set;
 
+import com.couchbase.client.commons.iterators.JsonArrayDocumentIterator;
 import com.couchbase.client.core.message.ResponseStatus;
 import com.couchbase.client.core.message.kv.subdoc.multi.Lookup;
 import com.couchbase.client.core.message.kv.subdoc.multi.Mutation;
@@ -106,8 +107,7 @@ public class CouchbaseArraySet<T> extends AbstractSet<T> {
 
     @Override
     public Iterator<T> iterator() {
-        JsonArrayDocument current = bucket.get(id, JsonArrayDocument.class);
-        return new Itr(current);
+        return new JsonArrayDocumentIterator<T>(bucket, id);
     }
 
     @Override
@@ -201,64 +201,5 @@ public class CouchbaseArraySet<T> extends AbstractSet<T> {
             return tested == null;
         }
         return expected.equals(tested);
-    }
-
-    private class Itr implements Iterator<T> {
-
-        private long cas;
-        private final Iterator<T> delegate;
-        private int lastVisited = -1;
-        private boolean doneRemove = false;
-
-        public Itr(JsonArrayDocument current) {
-            this.cas = current.cas();
-            this.delegate = (Iterator<T>) current.content().iterator();
-        }
-
-        @Override
-        public boolean hasNext() {
-            return delegate.hasNext();
-        }
-
-        @Override
-        public T next() {
-            if (hasNext()) {
-                lastVisited++;
-                doneRemove = false;
-            }
-            return delegate.next();
-        }
-
-        @Override
-        public void remove() {
-            if (lastVisited < 0) {
-                throw new IllegalStateException("Cannot remove before having started iterating");
-            }
-            //skip remove attempts past the first one after a next()
-            if (doneRemove) {
-                throw new IllegalStateException("Cannot remove twice in a row while iterating");
-            }
-            String path = "[" + lastVisited + "]";
-            //use the cas to attempt to remove
-            try {
-                DocumentFragment<Mutation> itrRemoveResult = bucket.mutateIn(id)
-                        .withCas(cas)
-                        .remove(path)
-                        .execute();
-                //update the cas
-                this.cas = itrRemoveResult.cas();
-                //ok the remove succeeded in DB, let's reflect that in the iterator's backing collection and state
-                delegate.remove();
-                doneRemove = true;
-                lastVisited--;
-            } catch (CASMismatchException e) {
-                throw new ConcurrentModificationException("Couldn't remove while iterating: " + e);
-            } catch (MultiMutationException e) {
-                if (e.firstFailureStatus() == ResponseStatus.SUBDOC_PATH_NOT_FOUND) {
-                    throw new IllegalStateException("Invalid remove index " + path);
-                }
-                throw e;
-            }
-        }
     }
 }
