@@ -138,13 +138,13 @@ public class CouchbaseQueue<E> extends AbstractQueue<E> {
             throw new IllegalArgumentException("Unsupported value type.");
         }
 
-        bucket.mutateIn(id).arrayAppend("", e, false).execute();
+        bucket.mutateIn(id).arrayPrepend("", e, false).execute();
         return true;
     }
 
     @Override
     public E poll() {
-        String idx = "[0]"; //FIFO queue
+        String idx = "[-1]"; //FIFO queue as offer uses ARRAY_PREPEND
         for(int i = 0; i < MAX_OPTIMISTIC_LOCKING_ATTEMPTS; i++) {
             try {
                 DocumentFragment<Lookup> current = bucket.lookupIn(id).get(idx).execute();
